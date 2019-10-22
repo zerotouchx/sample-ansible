@@ -1,0 +1,47 @@
+---
+- hosts: all
+  become: yes
+  user: ansible
+  tasks:
+  - name: check service sys mgr
+    shell: ps -p 1 -o comm=
+    register: sys_out
+
+  - set_fact:
+      sys_mgr: systemd
+    when: sys_out.stdout == "systemd"
+
+  - set_fact:
+      sys_mgr: init
+    when: sys_out.stdout == "init"
+
+
+
+  - name: check service
+    shell: systemctl is-active cups.service
+    register: cups_out_systemd
+    when: sys_mgr == "systemd"
+    ignore_errors: yes
+
+  - name: check service init
+    shell: /sbin/service cups status
+    register: cups_out_init
+    when: sys_mgr == "init"
+    ignore_errors: yes
+
+  - name: ...
+    block:
+      - name: ...
+        debug: msg="[DEBUG] => cups service running"
+        when: '"inactive" not in cups_out_systemd.stdout'
+        ignore_errors: yes
+    when: sys_mgr == "systemd"
+
+  - name: ...
+    block:
+     # - debug: msg="{{ cups_out_init.stdout }}"
+      - name: ...
+        debug: msg="[DEBUG] => cups service running"
+        when: '"running" in cups_out_init.stdout'
+        ignore_errors: yes
+    when: sys_mgr == "init"
